@@ -50,12 +50,24 @@ const command: Command = {
     const guild = interaction.guild!;
     const member = await guild.members.fetch(interaction.user.id);
 
-    // Remove role from member; delete the role entirely if nobody holds it anymore
+    // Remove role from member; if nobody holds it anymore, delete the channel and role too
     const removeRoleByName = async (name: string) => {
       const role = guild.roles.cache.find((r) => r.name === name);
       if (!role) return;
       await member.roles.remove(role).catch(() => null);
-      if (role.members.size === 0) await role.delete('No enrolled members').catch(() => null);
+      if (role.members.size === 0) {
+        const channelRes = await pool.query<{ channel_id: string; id: number }>(
+          'SELECT channel_id, id FROM discord_channels WHERE role_id = $1 AND guild_id = $2',
+          [role.id, guild.id],
+        );
+        for (const { channel_id, id } of channelRes.rows) {
+          const ch = guild.channels.cache.get(channel_id)
+            ?? await guild.channels.fetch(channel_id).catch(() => null);
+          if (ch) await ch.delete('No enrolled members').catch(() => null);
+          await pool.query('DELETE FROM discord_channels WHERE id = $1', [id]);
+        }
+        await role.delete('No enrolled members').catch(() => null);
+      }
     };
 
     if (sectionArg) {
