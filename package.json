@@ -1,0 +1,32 @@
+{
+  "name": "classmatch-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "register-commands": "tsx src/scripts/registerCommands.ts",
+    "migrate": "sh -c 'set -a && . ./.env && set +a && DATABASE_URL=${DATABASE_PUBLIC_URL:-$DATABASE_URL} node-pg-migrate up --migrations-dir src/db/migrations'",
+    "migrate:down": "sh -c 'set -a && . ./.env && set +a && DATABASE_URL=${DATABASE_PUBLIC_URL:-$DATABASE_URL} node-pg-migrate down --migrations-dir src/db/migrations'",
+    "sync": "tsx src/scripts/runSync.ts"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "discord.js": "^14.17.3",
+    "dotenv": "^16.4.7",
+    "node-cron": "^3.0.3",
+    "node-pg-migrate": "^8.0.4",
+    "pg": "^8.13.3",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@types/node-cron": "^3.0.11",
+    "@types/pg": "^8.11.11",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
