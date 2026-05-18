@@ -3,6 +3,7 @@ import {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   ActionRowBuilder,
+  ChannelType,
   type ChatInputCommandInteraction,
   type StringSelectMenuInteraction,
   ComponentType,
@@ -130,7 +131,6 @@ async function handleEnroll(
   const member = await guild.members.fetch(interaction.user.id);
 
   // Find or create term category
-  const { ChannelType } = await import('discord.js');
   const categoryName = termName;
   let category = guild.channels.cache.find(
     (c) => c.type === ChannelType.GuildCategory && c.name === categoryName,

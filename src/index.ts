@@ -60,12 +60,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 async function main(): Promise<void> {
-  logger.info('Starting ClassMatch bot...');
+  logger.info('Starting UWClassBot bot...');
   await testConnection();
   await client.login(config.DISCORD_BOT_TOKEN);
 }
 
 main().catch((err) => {
   logger.error({ err }, 'Fatal startup error');
+  console.error('FATAL:', err);
   process.exit(1);
 });

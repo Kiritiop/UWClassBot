@@ -94,13 +94,16 @@ export async function enrollUserInSection(
   const sectionRole = await ensureSectionRole(guild, course, section);
   await member.roles.add(sectionRole);
 
+  // Enroll first so the count includes this user
+  await enrollUser(member.id, section.id);
+
   const enrolledCount = await countEnrollmentsForSection(section.id);
   const threshold = config.SECTION_THRESHOLD;
 
-  if (enrolledCount + 1 >= threshold) {
+  if (enrolledCount >= threshold) {
     await ensureSectionChannel(guild, course, section, sectionRole, categoryId);
-    // If this enrollment exactly hit the threshold, notify waiting list users
-    if (enrolledCount + 1 === threshold) {
+    // Exactly hit the threshold — notify waiting list users
+    if (enrolledCount === threshold) {
       const waitingRes = await pool.query<{ user_id: string }>(
         'SELECT user_id FROM waiting_lists WHERE section_id = $1',
         [section.id],
@@ -127,13 +130,11 @@ export async function enrollUserInSection(
     );
   }
 
-  await enrollUser(member.id, section.id);
-
   return {
-    status: enrolledCount + 1 >= threshold ? 'enrolled' : 'waiting_list',
+    status: enrolledCount >= threshold ? 'enrolled' : 'waiting_list',
     course,
     section,
-    enrolledCount: enrolledCount + 1,
+    enrolledCount,
   };
 }
 

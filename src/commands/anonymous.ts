@@ -63,7 +63,8 @@ const command: Command = {
       return;
     }
 
-    const channel = guild.channels.cache.get(channelRecord.channel_id) as TextChannel | undefined;
+    const channel = (guild.channels.cache.get(channelRecord.channel_id)
+      ?? await guild.channels.fetch(channelRecord.channel_id).catch(() => null)) as TextChannel | null;
     if (!channel) {
       await interaction.editReply({ embeds: [errorEmbed('Could not find the course channel. Try again later.')] });
       return;

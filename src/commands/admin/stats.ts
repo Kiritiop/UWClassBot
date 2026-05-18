@@ -20,7 +20,7 @@ export async function handleStats(interaction: ChatInputCommandInteraction): Pro
 
   const embed = new EmbedBuilder()
     .setColor(Colors.Blurple)
-    .setTitle('ClassMatch Server Stats')
+    .setTitle('UWClassBot Server Stats')
     .addFields(
       { name: 'Current term', value: term?.name ?? 'None', inline: true },
       { name: 'Users', value: usersRes.rows[0].count, inline: true },

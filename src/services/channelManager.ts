@@ -63,8 +63,11 @@ export async function ensureCourseChannel(
 ): Promise<TextChannel> {
   const existing = await getChannelByCourseId(course.id, guild.id);
   if (existing) {
-    const ch = guild.channels.cache.get(existing.channel_id);
+    const ch = guild.channels.cache.get(existing.channel_id)
+      ?? await guild.channels.fetch(existing.channel_id).catch(() => null);
     if (ch) return ch as TextChannel;
+    // Channel was deleted from Discord — remove stale DB record and recreate
+    await pool.query('DELETE FROM discord_channels WHERE id = $1', [existing.id]);
   }
 
   const name = courseChannelName(course.subject, course.catalog_number);
@@ -90,8 +93,11 @@ export async function ensureSectionChannel(
 ): Promise<TextChannel> {
   const existing = await getChannelBySectionId(section.id, guild.id);
   if (existing) {
-    const ch = guild.channels.cache.get(existing.channel_id);
+    const ch = guild.channels.cache.get(existing.channel_id)
+      ?? await guild.channels.fetch(existing.channel_id).catch(() => null);
     if (ch) return ch as TextChannel;
+    // Channel was deleted from Discord — remove stale DB record and recreate
+    await pool.query('DELETE FROM discord_channels WHERE id = $1', [existing.id]);
   }
 
   const name = sectionChannelName(

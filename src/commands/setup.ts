@@ -85,7 +85,7 @@ const command: Command = {
     try {
       privacyMsg = await dmChannel.send({
         content:
-          '**ClassMatch Setup — Step 1 of 3: Privacy**\n\n' +
+          '**UWClassBot Setup — Step 1 of 3: Privacy**\n\n' +
           'How should classmates see you in `/classmates`?\n\n' +
           '• **Handle only** — classmates see `@yourusername`\n' +
           '• **Show full name** — classmates see your real display name',
@@ -113,7 +113,7 @@ const command: Command = {
     // --- Step 2: Program + year modal ---
     const modal = new ModalBuilder()
       .setCustomId('setup_profile_modal')
-      .setTitle('ClassMatch — Your Profile')
+      .setTitle('UWClassBot — Your Profile')
       .addComponents(
         new ActionRowBuilder<TextInputBuilder>().addComponents(
           new TextInputBuilder()
@@ -163,7 +163,7 @@ const command: Command = {
     // --- Step 3: Schedule paste ---
     await dmChannel.send({
       content:
-        `**ClassMatch Setup — Step 3 of 3: Your Schedule**\n\n` +
+        `**UWClassBot Setup — Step 3 of 3: Your Schedule**\n\n` +
         `Paste your class schedule from **UW Quest** and I'll enroll you automatically.\n\n` +
         `Go to Quest → **Class Schedule** → select **${term.name}** → copy all text and paste it here.\n\n` +
         `_Type \`skip\` to skip and use \`/enroll\` in the server instead._`,
@@ -208,9 +208,10 @@ const command: Command = {
     const waiting: string[] = [];
     const failed: string[] = [];
 
+    const member = await guild.members.fetch(interaction.user.id);
+
     for (const s of parsedSections) {
       try {
-        const member = await guild.members.fetch(interaction.user.id);
         const result = await enrollUserInSection(
           guild,
           member,
