@@ -1,12 +1,12 @@
-import { SlashCommandBuilder, EmbedBuilder, Colors, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, Colors, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from './index';
 import { getCurrentTerm } from '../db/queries/terms';
 import { getCourseByCode } from '../db/queries/courses';
 import { getSectionsByCourse, getSectionByTypeAndNumber } from '../db/queries/sections';
-import { getEnrolledUserIds, isEnrolled } from '../db/queries/enrollments';
-import { getUserById } from '../db/queries/users';
+import { getEnrolledUserIds } from '../db/queries/enrollments';
+import { getUsersByIds } from '../db/queries/users';
 import { parseCourseCode, parseSectionArg } from '../services/enrollmentService';
-import { errorEmbed, sectionLabel } from '../utils/embeds';
+import { errorEmbed } from '../utils/embeds';
 
 const command: Command = {
   data: new SlashCommandBuilder()
@@ -20,7 +20,7 @@ const command: Command = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
 
     const courseCodeRaw = interaction.options.getString('course_code', true);
     const sectionArg = interaction.options.getString('section');
@@ -77,17 +77,14 @@ const command: Command = {
 
       totalCount += userIds.length;
 
-      // Build display list based on privacy settings
-      const names: string[] = [];
-      for (const uid of userIds) {
-        const user = await getUserById(uid);
-        if (!user) continue;
-        if (user.privacy_setting === 'show_name' && user.real_name) {
-          names.push(`${user.real_name} (<@${uid}>)`);
-        } else {
-          names.push(`<@${uid}>`);
+      const userMap = await getUsersByIds(userIds);
+      const names = userIds.map((uid) => {
+        const user = userMap.get(uid);
+        if (user?.privacy_setting === 'show_name' && user.real_name) {
+          return `${user.real_name} (<@${uid}>)`;
         }
-      }
+        return `<@${uid}>`;
+      });
 
       const label = `${section.section_type} ${section.section_number} (${userIds.length} students)`;
       const value = names.slice(0, 20).join('\n') + (names.length > 20 ? `\n...and ${names.length - 20} more` : '');

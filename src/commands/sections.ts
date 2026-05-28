@@ -1,10 +1,11 @@
-import { SlashCommandBuilder, EmbedBuilder, Colors, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, Colors, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from './index';
 import { getCurrentTerm } from '../db/queries/terms';
 import { getCourseByCode } from '../db/queries/courses';
 import { getSectionsByCourse } from '../db/queries/sections';
 import { countEnrollmentsForSection } from '../db/queries/enrollments';
 import { sectionLabel, errorEmbed } from '../utils/embeds';
+import { parseCourseCode } from '../services/enrollmentService';
 import { config } from '../config';
 
 const command: Command = {
@@ -16,7 +17,7 @@ const command: Command = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
 
     const courseCodeRaw = interaction.options.getString('course_code', true);
     const term = await getCurrentTerm();
@@ -25,9 +26,7 @@ const command: Command = {
       return;
     }
 
-    // Re-use parseCourseCode from embeds doesn't exist there — import from enrollmentService
-    const { parseCourseCode: parse } = await import('../services/enrollmentService');
-    const parsed = parse(courseCodeRaw);
+    const parsed = parseCourseCode(courseCodeRaw);
     if (!parsed) {
       await interaction.editReply({
         embeds: [errorEmbed(`"${courseCodeRaw}" is not a valid course code.`)],

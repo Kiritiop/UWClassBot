@@ -14,6 +14,15 @@ export async function getUserById(discordId: string): Promise<User | null> {
   return result.rows[0] ?? null;
 }
 
+export async function getUsersByIds(discordIds: string[]): Promise<Map<string, User>> {
+  if (discordIds.length === 0) return new Map();
+  const result = await pool.query<User>(
+    'SELECT * FROM users WHERE discord_id = ANY($1)',
+    [discordIds],
+  );
+  return new Map(result.rows.map((u) => [u.discord_id, u]));
+}
+
 export async function updateUserProfile(
   discordId: string,
   updates: Partial<Pick<User, 'privacy_setting' | 'real_name' | 'program' | 'year_level'>>,

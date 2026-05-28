@@ -48,3 +48,43 @@ export async function getEnrolledUserIds(sectionId: number): Promise<string[]> {
   );
   return result.rows.map((r) => r.user_id);
 }
+
+export interface EnrollmentWithDetails {
+  enrollment_id: number;
+  // Section fields (matches Section interface so sectionLabel() works directly)
+  id: number;
+  section_id: number;
+  section_type: string;
+  section_number: string;
+  instructor: string | null;
+  days: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  location: string | null;
+  class_number: number | null;
+  // Course fields
+  course_id: number;
+  subject: string;
+  catalog_number: string;
+  title: string;
+  term_code: string;
+}
+
+export async function getActiveEnrollmentsWithDetails(
+  userId: string,
+  termCode: string,
+): Promise<EnrollmentWithDetails[]> {
+  const result = await pool.query<EnrollmentWithDetails>(
+    `SELECT e.id AS enrollment_id,
+            s.id, s.id AS section_id, s.section_type, s.section_number,
+            s.instructor, s.days, s.start_time, s.end_time, s.location, s.class_number,
+            c.id AS course_id, c.subject, c.catalog_number, c.title, c.term_code
+     FROM enrollments e
+     JOIN sections s ON s.id = e.section_id
+     JOIN courses c ON c.id = s.course_id
+     WHERE e.user_id = $1 AND e.active = TRUE AND c.term_code = $2
+     ORDER BY c.subject, c.catalog_number, s.section_type, s.section_number`,
+    [userId, termCode],
+  );
+  return result.rows;
+}

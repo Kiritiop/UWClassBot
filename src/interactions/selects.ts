@@ -1,4 +1,4 @@
-import type { StringSelectMenuInteraction } from 'discord.js';
+import { type StringSelectMenuInteraction, MessageFlags } from 'discord.js';
 import { errorEmbed } from '../utils/embeds';
 import { logger } from '../utils/logger';
 
@@ -13,5 +13,5 @@ export async function handleSelect(interaction: StringSelectMenuInteraction): Pr
   }
 
   logger.warn({ customId }, 'Unhandled select interaction');
-  await interaction.reply({ embeds: [errorEmbed('Unknown select menu.')], ephemeral: true });
+  await interaction.reply({ embeds: [errorEmbed('Unknown select menu.')], flags: MessageFlags.Ephemeral as number });
 }

@@ -4,6 +4,7 @@ import {
   StringSelectMenuOptionBuilder,
   ActionRowBuilder,
   ChannelType,
+  MessageFlags,
   type ChatInputCommandInteraction,
   type StringSelectMenuInteraction,
   ComponentType,
@@ -11,11 +12,10 @@ import {
 import type { Command } from './index';
 import { config } from '../config';
 import { getCurrentTerm } from '../db/queries/terms';
-import { getCourseByCode, getCourseById } from '../db/queries/courses';
-import { getSectionsByCourse, getSectionById } from '../db/queries/sections';
+import { getCourseByCode } from '../db/queries/courses';
+import { getSectionsByCourse } from '../db/queries/sections';
 import { enrollUserInSection, parseCourseCode } from '../services/enrollmentService';
 import { errorEmbed, successEmbed, sectionLabel } from '../utils/embeds';
-import { logger } from '../utils/logger';
 
 const command: Command = {
   data: new SlashCommandBuilder()
@@ -40,7 +40,7 @@ const command: Command = {
     if (!term) {
       await interaction.reply({
         embeds: [errorEmbed('No current term is configured. Ask an admin to run `/admin set-current-term`.')],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral as number,
       });
       return;
     }
@@ -49,7 +49,7 @@ const command: Command = {
     if (!parsed) {
       await interaction.reply({
         embeds: [errorEmbed(`"${courseCodeRaw}" does not look like a valid course code (e.g. CS 135, MATH 135).`)],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral as number,
       });
       return;
     }
@@ -58,7 +58,7 @@ const command: Command = {
     if (!course) {
       await interaction.reply({
         embeds: [errorEmbed(`${parsed.subject} ${parsed.catalogNumber} was not found in ${term.name}. Run \`/sections\` to browse available courses.`)],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral as number,
       });
       return;
     }
@@ -69,7 +69,7 @@ const command: Command = {
       if (sections.length === 0) {
         await interaction.reply({
           embeds: [errorEmbed(`No sections are available for ${course.subject} ${course.catalog_number} yet.`)],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral as number,
         });
         return;
       }
@@ -92,7 +92,7 @@ const command: Command = {
       await interaction.reply({
         content: `Which section of **${course.subject} ${course.catalog_number}** do you want to enroll in?`,
         components: [row],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral as number,
       });
 
       // Wait for select menu response (2 minute timeout)
@@ -109,12 +109,13 @@ const command: Command = {
         return;
       }
 
+      await selectInteraction.deferUpdate();
       const [type, number] = selectInteraction.values[0].split('_');
       await handleEnroll(selectInteraction, course.subject, `${course.catalog_number}`, `${type} ${number}`, term.term_code, term.name);
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
     await handleEnroll(interaction, course.subject, course.catalog_number, sectionArg, term.term_code, term.name);
   },
 };
@@ -157,7 +158,7 @@ async function handleEnroll(
     if (interaction.deferred || interaction.replied) {
       return interaction.editReply({ embeds: [embed] });
     }
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral as number });
   };
 
   switch (result.status) {

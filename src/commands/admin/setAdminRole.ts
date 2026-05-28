@@ -1,9 +1,9 @@
-import { type ChatInputCommandInteraction } from 'discord.js';
+import { type ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { successEmbed } from '../../utils/embeds';
 import { upsertGuildConfig } from '../../db/queries/guildConfigs';
 
 export async function handleSetAdminRole(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
   const role = interaction.options.getRole('role', true);
   await upsertGuildConfig(interaction.guild!.id, role.id);
   await interaction.editReply({

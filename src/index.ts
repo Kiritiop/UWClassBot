@@ -1,8 +1,8 @@
 import './config'; // validates env vars early, exits if invalid
-import { Events, InteractionType } from 'discord.js';
+import { Events, InteractionType, MessageFlags } from 'discord.js';
 import { client } from './client';
 import { config } from './config';
-import { testConnection } from './db/pool';
+import { pool, testConnection } from './db/pool';
 import { commands } from './commands/index';
 import { handleButton } from './interactions/buttons';
 import { handleSelect } from './interactions/selects';
@@ -26,14 +26,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const command = commands.get(interaction.commandName);
     if (!command) {
       logger.warn({ commandName: interaction.commandName }, 'Unknown command');
-      await interaction.reply({ content: 'Unknown command.', ephemeral: true });
+      await interaction.reply({ content: 'Unknown command.', flags: MessageFlags.Ephemeral as number });
       return;
     }
     try {
       await command.execute(interaction);
     } catch (err) {
       logger.error({ err, commandName: interaction.commandName }, 'Command error');
-      const msg = { content: 'Something went wrong. Please try again.', ephemeral: true };
+      const msg = { content: 'Something went wrong. Please try again.', flags: MessageFlags.Ephemeral as number };
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp(msg);
       } else {
@@ -64,6 +64,17 @@ async function main(): Promise<void> {
   await testConnection();
   await client.login(config.DISCORD_BOT_TOKEN);
 }
+
+async function shutdown(signal: string): Promise<void> {
+  logger.info({ signal }, 'Shutting down gracefully...');
+  client.destroy();
+  await pool.end();
+  logger.info('Shutdown complete');
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 main().catch((err) => {
   logger.error({ err }, 'Fatal startup error');

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from '../index';
 import { errorEmbed } from '../../utils/embeds';
 import { getGuildConfig } from '../../db/queries/guildConfigs';
@@ -57,7 +57,7 @@ const command: Command = {
       if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
         await interaction.reply({
           embeds: [errorEmbed('Only server administrators can set the admin role.')],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral as number,
         });
         return;
       }
@@ -73,7 +73,7 @@ const command: Command = {
     if (!isAdmin) {
       await interaction.reply({
         embeds: [errorEmbed('You do not have permission to use admin commands.')],
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral as number,
       });
       return;
     }
@@ -85,6 +85,8 @@ const command: Command = {
       case 'set-current-term': return handleSetCurrentTerm(interaction);
       case 'audit': return handleAudit(interaction);
       case 'stats': return handleStats(interaction);
+      default:
+        await interaction.reply({ embeds: [errorEmbed(`Unknown subcommand: ${sub}`)], flags: MessageFlags.Ephemeral as number });
     }
   },
 };

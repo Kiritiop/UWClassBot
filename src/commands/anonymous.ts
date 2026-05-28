@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, Colors, ChannelType, type ChatInputCommandInteraction, type TextChannel } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, Colors, ChannelType, MessageFlags, type ChatInputCommandInteraction, type TextChannel } from 'discord.js';
 import type { Command } from './index';
 import { getCurrentTerm } from '../db/queries/terms';
 import { getCourseByCode } from '../db/queries/courses';
@@ -20,7 +20,7 @@ const command: Command = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
 
     const courseCodeRaw = interaction.options.getString('course_code', true);
     const message = interaction.options.getString('message', true).trim();

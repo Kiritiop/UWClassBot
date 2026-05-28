@@ -51,6 +51,20 @@ export async function runThresholdRecheckJob(): Promise<void> {
         const sectionRole = await ensureSectionRole(guild, course, section);
         await ensureSectionChannel(guild, course, section, sectionRole, category.id);
 
+        // Assign the section role to every enrolled member so they can see the new channel
+        const enrolledRes = await pool.query<{ user_id: string }>(
+          'SELECT user_id FROM enrollments WHERE section_id = $1 AND active = TRUE',
+          [section_id],
+        );
+        for (const { user_id } of enrolledRes.rows) {
+          try {
+            const guildMember = await guild.members.fetch(user_id);
+            await guildMember.roles.add(sectionRole);
+          } catch {
+            // Member left the server — skip
+          }
+        }
+
         const waitingRes = await pool.query<{ user_id: string }>(
           'SELECT user_id FROM waiting_lists WHERE section_id = $1',
           [section_id],

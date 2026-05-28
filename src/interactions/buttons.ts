@@ -1,4 +1,4 @@
-import type { ButtonInteraction } from 'discord.js';
+import { type ButtonInteraction, MessageFlags } from 'discord.js';
 import { errorEmbed } from '../utils/embeds';
 import { logger } from '../utils/logger';
 
@@ -16,5 +16,5 @@ export async function handleButton(interaction: ButtonInteraction): Promise<void
   }
 
   logger.warn({ customId }, 'Unhandled button interaction');
-  await interaction.reply({ embeds: [errorEmbed('Unknown button.')], ephemeral: true });
+  await interaction.reply({ embeds: [errorEmbed('Unknown button.')], flags: MessageFlags.Ephemeral as number });
 }

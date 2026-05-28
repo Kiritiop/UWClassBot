@@ -1,11 +1,11 @@
-import { type ChatInputCommandInteraction } from 'discord.js';
+import { type ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 import { successEmbed, errorEmbed } from '../../utils/embeds';
 import { runArchiveJob } from '../../jobs/archiveJob';
 import { pool } from '../../db/pool';
 
 export async function handleForceArchive(interaction: ChatInputCommandInteraction): Promise<void> {
   const termCode = interaction.options.getString('term_code', true);
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
 
   // Verify the term exists
   const termRes = await pool.query<{ name: string }>(

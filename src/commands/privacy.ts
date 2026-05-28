@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from './index';
 import { upsertUser, updateUserProfile } from '../db/queries/users';
 import { successEmbed, errorEmbed } from '../utils/embeds';
@@ -19,7 +19,7 @@ const command: Command = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
 
     const setting = interaction.options.getString('setting', true) as 'handle_only' | 'show_name';
 

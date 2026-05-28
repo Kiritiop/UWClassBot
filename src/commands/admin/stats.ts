@@ -1,9 +1,9 @@
-import { EmbedBuilder, Colors, type ChatInputCommandInteraction } from 'discord.js';
+import { EmbedBuilder, Colors, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import { pool } from '../../db/pool';
 import { getCurrentTerm } from '../../db/queries/terms';
 
 export async function handleStats(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
 
   const [usersRes, coursesRes, sectionsRes, enrollmentsRes, channelsRes, term] = await Promise.all([
     pool.query<{ count: string }>('SELECT COUNT(*) AS count FROM users'),

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from './index';
 import { getCurrentTerm } from '../db/queries/terms';
 import { getCourseByCode } from '../db/queries/courses';
@@ -24,7 +24,7 @@ const command: Command = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
 
     const courseCodeRaw = interaction.options.getString('course_code', true);
     const sectionArg = interaction.options.getString('section');
@@ -51,36 +51,49 @@ const command: Command = {
     const member = await guild.members.fetch(interaction.user.id);
 
     // Remove role from member; if nobody holds it anymore, delete the channel and role too.
-    // Use DB enrollment counts rather than role.members — the cache is unreliable after
-    // bot restarts or in servers where members aren't fully cached.
+    // Uses DB enrollment counts (not role.members cache) for accuracy after bot restarts.
     const removeRoleByName = async (name: string) => {
       const role = guild.roles.cache.find((r) => r.name === name);
       if (!role) return;
       await member.roles.remove(role).catch(() => null);
 
-      // Find what course/section this role covers, then count remaining active enrollments.
+      // Count remaining active enrollments for anything tied to this role.
+      // A discord_channels row exists only once the section channel was created (above threshold).
+      // For below-threshold sections the role exists but has no channel row yet — we detect that
+      // case by matching role_id in discord_channels and falling back to a section name lookup.
       const channelRow = await pool.query<{ course_id: number; section_id: number | null }>(
         'SELECT course_id, section_id FROM discord_channels WHERE role_id = $1 AND guild_id = $2 LIMIT 1',
         [role.id, guild.id],
       );
-      const row = channelRow.rows[0];
-      let holderCount = 0;
-      if (row) {
+
+      let holderCount: number;
+      if (channelRow.rows.length > 0) {
+        const { course_id, section_id } = channelRow.rows[0];
         const countRes = await pool.query<{ count: string }>(
-          row.section_id != null
+          section_id != null
             ? 'SELECT COUNT(*) AS count FROM enrollments WHERE section_id = $1 AND active = TRUE'
             : `SELECT COUNT(*) AS count FROM enrollments e
                JOIN sections s ON s.id = e.section_id
                WHERE s.course_id = $1 AND e.active = TRUE`,
-          [row.section_id ?? row.course_id],
+          [section_id ?? course_id],
+        );
+        holderCount = parseInt(countRes.rows[0].count, 10);
+      } else {
+        // No channel row: match the role name against sections/courses in the DB directly.
+        // Role name formats: "CS 135 LEC 001" (section) or "CS 135" (course).
+        const countRes = await pool.query<{ count: string }>(
+          `SELECT COUNT(*) AS count FROM enrollments e
+           JOIN sections s ON s.id = e.section_id
+           JOIN courses c ON c.id = s.course_id
+           WHERE e.active = TRUE
+             AND (
+               c.subject || ' ' || c.catalog_number || ' ' || s.section_type || ' ' || s.section_number = $1
+               OR c.subject || ' ' || c.catalog_number = $1
+             )`,
+          [name],
         );
         holderCount = parseInt(countRes.rows[0].count, 10);
       }
-
-      // Also handle section roles that have no channel yet (below threshold)
-      // In that case there's no discord_channels row, but we still need to check enrollments.
-      // We do this by looking up the section via the role name directly from the guild role cache —
-      // if there's no DB row at all, nobody else can hold the role, so holderCount stays 0.
 
       if (holderCount === 0) {
         const channelRes = await pool.query<{ channel_id: string; id: number }>(

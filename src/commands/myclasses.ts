@@ -1,9 +1,7 @@
-import { SlashCommandBuilder, EmbedBuilder, Colors, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, Colors, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
 import type { Command } from './index';
 import { getCurrentTerm } from '../db/queries/terms';
-import { getActiveEnrollments } from '../db/queries/enrollments';
-import { getSectionById } from '../db/queries/sections';
-import { getCourseById } from '../db/queries/courses';
+import { getActiveEnrollmentsWithDetails } from '../db/queries/enrollments';
 import { sectionLabel } from '../utils/embeds';
 
 const command: Command = {
@@ -12,7 +10,7 @@ const command: Command = {
     .setDescription('List all your current enrollments'),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
 
     const term = await getCurrentTerm();
     if (!term) {
@@ -20,38 +18,25 @@ const command: Command = {
       return;
     }
 
-    const enrollments = await getActiveEnrollments(interaction.user.id);
-    if (enrollments.length === 0) {
-      await interaction.editReply({
-        content: 'You are not enrolled in any courses. Use `/enroll` to get started.',
-      });
-      return;
-    }
-
-    // Group by course
-    const byCourse = new Map<number, { courseName: string; sections: string[] }>();
-
-    for (const enrollment of enrollments) {
-      const section = await getSectionById(enrollment.section_id);
-      if (!section) continue;
-      const course = await getCourseById(section.course_id);
-      if (!course) continue;
-
-      // Only show enrollments for current term
-      if (course.term_code !== term.term_code) continue;
-
-      const key = course.id;
-      if (!byCourse.has(key)) {
-        byCourse.set(key, { courseName: `${course.subject} ${course.catalog_number} - ${course.title}`, sections: [] });
-      }
-      byCourse.get(key)!.sections.push(`**${section.section_type} ${section.section_number}** - ${sectionLabel(section)}`);
-    }
-
-    if (byCourse.size === 0) {
+    const rows = await getActiveEnrollmentsWithDetails(interaction.user.id, term.term_code);
+    if (rows.length === 0) {
       await interaction.editReply({
         content: `No enrollments found for ${term.name}. Use \`/enroll\` to get started.`,
       });
       return;
+    }
+
+    const byCourse = new Map<number, { courseName: string; sections: string[] }>();
+    for (const row of rows) {
+      if (!byCourse.has(row.course_id)) {
+        byCourse.set(row.course_id, {
+          courseName: `${row.subject} ${row.catalog_number} - ${row.title}`,
+          sections: [],
+        });
+      }
+      byCourse.get(row.course_id)!.sections.push(
+        `**${row.section_type} ${row.section_number}** - ${sectionLabel(row)}`,
+      );
     }
 
     const embed = new EmbedBuilder()

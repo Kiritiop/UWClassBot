@@ -29,9 +29,12 @@ export async function runCleanupRolesJob(): Promise<void> {
   let deleted = 0;
 
   for (const guild of client.guilds.cache.values()) {
+    // Fetch all roles from the API so we don't miss ones absent from cache
+    const allRoles = await guild.roles.fetch();
+
     for (const row of emptySecRes.rows) {
       const name = sectionRoleName(row.subject, row.catalog_number, row.section_type, row.section_number);
-      const role = guild.roles.cache.find((r) => r.name === name);
+      const role = allRoles.find((r) => r.name === name);
       if (role) {
         await role.delete('No enrolled members').catch(() => null);
         deleted++;
@@ -40,7 +43,7 @@ export async function runCleanupRolesJob(): Promise<void> {
 
     for (const row of emptyCourseRes.rows) {
       const name = courseRoleName(row.subject, row.catalog_number);
-      const role = guild.roles.cache.find((r) => r.name === name);
+      const role = allRoles.find((r) => r.name === name);
       if (role) {
         await role.delete('No enrolled members').catch(() => null);
         deleted++;

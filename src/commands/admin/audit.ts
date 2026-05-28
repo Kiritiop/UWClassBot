@@ -1,39 +1,36 @@
-import { EmbedBuilder, Colors, type ChatInputCommandInteraction } from 'discord.js';
-import { getActiveEnrollments } from '../../db/queries/enrollments';
-import { getSectionById } from '../../db/queries/sections';
-import { getCourseById } from '../../db/queries/courses';
-import { sectionLabel } from '../../utils/embeds';
-import { errorEmbed } from '../../utils/embeds';
+import { EmbedBuilder, Colors, MessageFlags, type ChatInputCommandInteraction } from 'discord.js';
+import { getActiveEnrollmentsWithDetails } from '../../db/queries/enrollments';
+import { sectionLabel, errorEmbed } from '../../utils/embeds';
 import { getCurrentTerm } from '../../db/queries/terms';
 
 export async function handleAudit(interaction: ChatInputCommandInteraction): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
 
   const target = interaction.options.getUser('user', true);
   const term = await getCurrentTerm();
-  const enrollments = await getActiveEnrollments(target.id);
+  if (!term) {
+    await interaction.editReply({ embeds: [errorEmbed('No current term configured.')] });
+    return;
+  }
 
-  if (enrollments.length === 0) {
+  const rows = await getActiveEnrollmentsWithDetails(target.id, term.term_code);
+
+  if (rows.length === 0) {
     await interaction.editReply({
-      embeds: [errorEmbed(`<@${target.id}> has no active enrollments.`)],
+      embeds: [errorEmbed(`<@${target.id}> has no active enrollments in ${term.name}.`)],
     });
     return;
   }
 
-  const lines: string[] = [];
-  for (const e of enrollments) {
-    const section = await getSectionById(e.section_id);
-    if (!section) continue;
-    const course = await getCourseById(section.course_id);
-    if (!course) continue;
-    lines.push(`**${course.subject} ${course.catalog_number}** ${section.section_type} ${section.section_number} - ${sectionLabel(section)}`);
-  }
+  const lines = rows.map(
+    (r) => `**${r.subject} ${r.catalog_number}** ${r.section_type} ${r.section_number} - ${sectionLabel(r)}`,
+  );
 
   const embed = new EmbedBuilder()
     .setColor(Colors.Blurple)
     .setTitle(`Enrollments for ${target.username}`)
-    .setDescription(lines.join('\n') || 'None')
-    .setFooter({ text: term?.name ?? '' });
+    .setDescription(lines.join('\n'))
+    .setFooter({ text: term.name });
 
   await interaction.editReply({ embeds: [embed] });
 }
