@@ -49,10 +49,11 @@ async function fetchProblemList(): Promise<ProblemListItem[]> {
   return res.data.stat_status_pairs.filter((p) => !p.paid_only);
 }
 
-async function fetchProblemDetail(titleSlug: string): Promise<LeetCodeProblem> {
+// frontendId is passed in from the list API so we display the correct user-facing number
+// (the GraphQL questionId field returns an internal backend ID that doesn't match)
+async function fetchProblemDetail(titleSlug: string, frontendId: number): Promise<LeetCodeProblem> {
   const data = await gqlRequest<{
     question: {
-      questionId: string;
       title: string;
       titleSlug: string;
       difficulty: string;
@@ -62,7 +63,6 @@ async function fetchProblemDetail(titleSlug: string): Promise<LeetCodeProblem> {
   }>(
     `query problemDetail($titleSlug: String!) {
       question(titleSlug: $titleSlug) {
-        questionId
         title
         titleSlug
         difficulty
@@ -74,8 +74,12 @@ async function fetchProblemDetail(titleSlug: string): Promise<LeetCodeProblem> {
   );
   const q = data.question;
   return {
-    ...q,
+    questionId: String(frontendId),
+    title: q.title,
+    titleSlug: q.titleSlug,
     difficulty: q.difficulty as Difficulty,
+    topicTags: q.topicTags,
+    content: q.content,
     url: `https://leetcode.com/problems/${titleSlug}/`,
   };
 }
@@ -87,7 +91,7 @@ export async function getRandomProblem(difficulty?: Difficulty): Promise<LeetCod
     : all;
   if (filtered.length === 0) throw new Error('No problems found');
   const pick = filtered[Math.floor(Math.random() * filtered.length)];
-  return fetchProblemDetail(pick.stat.question__title_slug);
+  return fetchProblemDetail(pick.stat.question__title_slug, pick.stat.frontend_question_id);
 }
 
 // Returns the newest problem by frontend question ID (highest number in the catalog)
@@ -97,7 +101,7 @@ export async function getLatestProblem(): Promise<LeetCodeProblem> {
   const latest = all.reduce((a, b) =>
     b.stat.frontend_question_id > a.stat.frontend_question_id ? b : a,
   );
-  return fetchProblemDetail(latest.stat.question__title_slug);
+  return fetchProblemDetail(latest.stat.question__title_slug, latest.stat.frontend_question_id);
 }
 
 // Strips HTML tags from problem content for a plain-text preview
