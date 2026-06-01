@@ -5,6 +5,7 @@ import { runArchiveJob } from './archiveJob';
 import { runDeleteJob } from './deleteJob';
 import { runThresholdRecheckJob } from './thresholdRecheckJob';
 import { runCleanupRolesJob } from './cleanupRolesJob';
+import { runLeetcodeDailyJob } from './leetcodeDailyJob';
 
 export function registerJobs(): void {
   // 03:00 ET — daily catalog sync
@@ -32,5 +33,10 @@ export function registerJobs(): void {
     runCleanupRolesJob().catch((err) => logger.error({ err }, 'Cleanup roles job error'));
   }, { timezone: 'America/Toronto' });
 
-  logger.info('Cron jobs registered (sync 03:00, archive 03:30, delete 04:00, recheck 04:30, cleanup 05:00 ET)');
+  // 08:00 ET — post LeetCode daily challenge
+  cron.schedule('0 8 * * *', () => {
+    runLeetcodeDailyJob().catch((err) => logger.error({ err }, 'LeetCode daily job error'));
+  }, { timezone: 'America/Toronto' });
+
+  logger.info('Cron jobs registered (sync 03:00, archive 03:30, delete 04:00, recheck 04:30, cleanup 05:00, leetcode 08:00 ET)');
 }

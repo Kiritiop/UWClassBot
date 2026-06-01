@@ -13,6 +13,8 @@ import classmatesCommand from './classmates';
 import privacyCommand from './privacy';
 import adminCommand from './admin/index';
 import anonymousCommand from './anonymous';
+import leetcodeCommand from './leetcode';
+import dailyLeetcodeCommand from './dailyLeetcode';
 
 export interface Command {
   data:
@@ -32,3 +34,5 @@ commands.set(classmatesCommand.data.name, classmatesCommand);
 commands.set(privacyCommand.data.name, privacyCommand);
 commands.set(adminCommand.data.name, adminCommand);
 commands.set(anonymousCommand.data.name, anonymousCommand);
+commands.set(leetcodeCommand.data.name, leetcodeCommand);
+commands.set(dailyLeetcodeCommand.data.name, dailyLeetcodeCommand);
