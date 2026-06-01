@@ -1,7 +1,7 @@
 import { EmbedBuilder, TextChannel } from 'discord.js';
 import { client } from '../client';
 import { pool } from '../db/pool';
-import { getDailyChallenge, buildProblemEmbed } from '../leetcode/client';
+import { getLatestProblem, buildProblemEmbed } from '../leetcode/client';
 import { logger } from '../utils/logger';
 
 export async function runLeetcodeDailyJob(): Promise<void> {
@@ -9,7 +9,7 @@ export async function runLeetcodeDailyJob(): Promise<void> {
 
   let problem;
   try {
-    problem = await getDailyChallenge();
+    problem = await getLatestProblem();
   } catch (err) {
     logger.error({ err }, 'LeetCode daily job: failed to fetch daily challenge');
     return;

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { logger } from '../utils/logger';
 
 const LC_GRAPHQL = 'https://leetcode.com/graphql';
 
@@ -11,6 +10,9 @@ const HEADERS = {
 
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
+const DIFFICULTY_LEVEL: Record<Difficulty, number> = { Easy: 1, Medium: 2, Hard: 3 };
+const LEVEL_DIFFICULTY: Record<number, Difficulty> = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
+
 export interface LeetCodeProblem {
   questionId: string;
   title: string;
@@ -19,6 +21,15 @@ export interface LeetCodeProblem {
   topicTags: { name: string }[];
   content: string | null;
   url: string;
+}
+
+interface ProblemListItem {
+  stat: {
+    frontend_question_id: number;
+    question__title_slug: string;
+  };
+  difficulty: { level: number };
+  paid_only: boolean;
 }
 
 async function gqlRequest<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
@@ -30,20 +41,25 @@ async function gqlRequest<T>(query: string, variables: Record<string, unknown> =
   return res.data.data;
 }
 
-// Fetches all problems (title slug + difficulty only) — used for random selection
-async function fetchAllProblems(difficulty?: Difficulty): Promise<{ stat: { question__title_slug: string }; difficulty: { level: number } }[]> {
-  const url = difficulty
-    ? `https://leetcode.com/api/problems/${difficulty.toLowerCase()}/`
-    : 'https://leetcode.com/api/problems/all/';
-  const res = await axios.get<{ stat_status_pairs: { stat: { question__title_slug: string }; difficulty: { level: number }; paid_only: boolean }[] }>(
-    url,
-    { headers: HEADERS, timeout: 10_000 },
+async function fetchProblemList(): Promise<ProblemListItem[]> {
+  const res = await axios.get<{ stat_status_pairs: ProblemListItem[] }>(
+    'https://leetcode.com/api/problems/all/',
+    { headers: HEADERS, timeout: 15_000 },
   );
   return res.data.stat_status_pairs.filter((p) => !p.paid_only);
 }
 
 async function fetchProblemDetail(titleSlug: string): Promise<LeetCodeProblem> {
-  const data = await gqlRequest<{ question: { questionId: string; title: string; titleSlug: string; difficulty: string; topicTags: { name: string }[]; content: string | null } }>(
+  const data = await gqlRequest<{
+    question: {
+      questionId: string;
+      title: string;
+      titleSlug: string;
+      difficulty: string;
+      topicTags: { name: string }[];
+      content: string | null;
+    };
+  }>(
     `query problemDetail($titleSlug: String!) {
       question(titleSlug: $titleSlug) {
         questionId
@@ -56,59 +72,58 @@ async function fetchProblemDetail(titleSlug: string): Promise<LeetCodeProblem> {
     }`,
     { titleSlug },
   );
+  const q = data.question;
   return {
-    ...data.question,
-    difficulty: data.question.difficulty as Difficulty,
+    ...q,
+    difficulty: q.difficulty as Difficulty,
     url: `https://leetcode.com/problems/${titleSlug}/`,
   };
 }
 
 export async function getRandomProblem(difficulty?: Difficulty): Promise<LeetCodeProblem> {
-  const problems = await fetchAllProblems(difficulty);
-  if (problems.length === 0) throw new Error('No problems found for the given difficulty');
-  const pick = problems[Math.floor(Math.random() * problems.length)];
+  const all = await fetchProblemList();
+  const filtered = difficulty
+    ? all.filter((p) => p.difficulty.level === DIFFICULTY_LEVEL[difficulty])
+    : all;
+  if (filtered.length === 0) throw new Error('No problems found');
+  const pick = filtered[Math.floor(Math.random() * filtered.length)];
   return fetchProblemDetail(pick.stat.question__title_slug);
 }
 
-export async function getDailyChallenge(): Promise<LeetCodeProblem> {
-  const data = await gqlRequest<{ activeDailyCodingChallengeQuestion: { question: { questionId: string; title: string; titleSlug: string; difficulty: string; topicTags: { name: string }[]; content: string | null } } }>(
-    `query dailyChallenge {
-      activeDailyCodingChallengeQuestion {
-        question {
-          questionId
-          title
-          titleSlug
-          difficulty
-          topicTags { name }
-          content
-        }
-      }
-    }`,
+// Returns the newest problem by frontend question ID (highest number in the catalog)
+export async function getLatestProblem(): Promise<LeetCodeProblem> {
+  const all = await fetchProblemList();
+  if (all.length === 0) throw new Error('Problem list is empty');
+  const latest = all.reduce((a, b) =>
+    b.stat.frontend_question_id > a.stat.frontend_question_id ? b : a,
   );
-  const q = data.activeDailyCodingChallengeQuestion.question;
-  return {
-    ...q,
-    difficulty: q.difficulty as Difficulty,
-    url: `https://leetcode.com/problems/${q.titleSlug}/`,
-  };
+  return fetchProblemDetail(latest.stat.question__title_slug);
 }
 
 // Strips HTML tags from problem content for a plain-text preview
-export function stripHtml(html: string | null, maxLen = 300): string {
+export function stripHtml(html: string | null, maxLen = 350): string {
   if (!html) return 'No description available.';
   const text = html
-    .replace(/<pre>[\s\S]*?<\/pre>/gi, '')  // remove code blocks
-    .replace(/<[^>]+>/g, '')                 // strip remaining tags
+    .replace(/<pre>[\s\S]*?<\/pre>/gi, '')
+    .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
   return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }
 
-export function buildProblemEmbed(problem: LeetCodeProblem): { color: number; title: string; url: string; description: string; fields: { name: string; value: string; inline: boolean }[] } {
+export function buildProblemEmbed(problem: LeetCodeProblem): {
+  color: number;
+  title: string;
+  url: string;
+  description: string;
+  fields: { name: string; value: string; inline: boolean }[];
+} {
   const difficultyColor: Record<Difficulty, number> = {
     Easy: 0x00b8a3,
     Medium: 0xffa116,
@@ -129,4 +144,5 @@ export function buildProblemEmbed(problem: LeetCodeProblem): { color: number; ti
   };
 }
 
-export { logger };
+// Keep LEVEL_DIFFICULTY exported for potential future use
+export { LEVEL_DIFFICULTY };

@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChannelType, MessageFlags, type ChatInputCommandInteraction, type TextChannel } from 'discord.js';
 import type { Command } from './index';
 import { setLeetcodeChannel } from '../db/queries/guildConfigs';
-import { getDailyChallenge, buildProblemEmbed } from '../leetcode/client';
+import { getLatestProblem, buildProblemEmbed } from '../leetcode/client';
 import { successEmbed, errorEmbed } from '../utils/embeds';
 import { EmbedBuilder } from 'discord.js';
 
@@ -13,7 +13,7 @@ const command: Command = {
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral as number });
 
-    const channel = interaction.channel;
+    const { channel } = interaction;
     if (!channel || channel.type !== ChannelType.GuildText) {
       await interaction.editReply({
         embeds: [errorEmbed('Run this command inside a text channel.')],
@@ -25,7 +25,7 @@ const command: Command = {
 
     // Post today's challenge immediately so the admin can confirm it works
     try {
-      const problem = await getDailyChallenge();
+      const problem = await getLatestProblem();
       const embed = buildProblemEmbed(problem);
       await (channel as TextChannel).send({
         content: '## 📅 LeetCode Daily Challenge',
