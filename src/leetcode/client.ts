@@ -20,6 +20,7 @@ export interface LeetCodeProblem {
   difficulty: Difficulty;
   topicTags: { name: string }[];
   content: string | null;
+  isPremium: boolean;
   url: string;
 }
 
@@ -41,17 +42,18 @@ async function gqlRequest<T>(query: string, variables: Record<string, unknown> =
   return res.data.data;
 }
 
-async function fetchProblemList(): Promise<ProblemListItem[]> {
+async function fetchProblemList(freeOnly = false): Promise<ProblemListItem[]> {
   const res = await axios.get<{ stat_status_pairs: ProblemListItem[] }>(
     'https://leetcode.com/api/problems/all/',
     { headers: HEADERS, timeout: 15_000 },
   );
-  return res.data.stat_status_pairs.filter((p) => !p.paid_only);
+  const all = res.data.stat_status_pairs;
+  return freeOnly ? all.filter((p) => !p.paid_only) : all;
 }
 
 // frontendId is passed in from the list API so we display the correct user-facing number
 // (the GraphQL questionId field returns an internal backend ID that doesn't match)
-async function fetchProblemDetail(titleSlug: string, frontendId: number): Promise<LeetCodeProblem> {
+async function fetchProblemDetail(titleSlug: string, frontendId: number, isPremium: boolean): Promise<LeetCodeProblem> {
   const data = await gqlRequest<{
     question: {
       title: string;
@@ -80,28 +82,34 @@ async function fetchProblemDetail(titleSlug: string, frontendId: number): Promis
     difficulty: q.difficulty as Difficulty,
     topicTags: q.topicTags,
     content: q.content,
+    isPremium,
     url: `https://leetcode.com/problems/${titleSlug}/`,
   };
 }
 
+// Random problems are always free-only — premium ones have no visible description
 export async function getRandomProblem(difficulty?: Difficulty): Promise<LeetCodeProblem> {
-  const all = await fetchProblemList();
+  const all = await fetchProblemList(true);
   const filtered = difficulty
     ? all.filter((p) => p.difficulty.level === DIFFICULTY_LEVEL[difficulty])
     : all;
   if (filtered.length === 0) throw new Error('No problems found');
   const pick = filtered[Math.floor(Math.random() * filtered.length)];
-  return fetchProblemDetail(pick.stat.question__title_slug, pick.stat.frontend_question_id);
+  return fetchProblemDetail(pick.stat.question__title_slug, pick.stat.frontend_question_id, false);
 }
 
-// Returns the newest problem by frontend question ID (highest number in the catalog)
+// Returns the newest problem by frontend question ID — includes premium problems
 export async function getLatestProblem(): Promise<LeetCodeProblem> {
-  const all = await fetchProblemList();
+  const all = await fetchProblemList(false);
   if (all.length === 0) throw new Error('Problem list is empty');
   const latest = all.reduce((a, b) =>
     b.stat.frontend_question_id > a.stat.frontend_question_id ? b : a,
   );
-  return fetchProblemDetail(latest.stat.question__title_slug, latest.stat.frontend_question_id);
+  return fetchProblemDetail(
+    latest.stat.question__title_slug,
+    latest.stat.frontend_question_id,
+    latest.paid_only,
+  );
 }
 
 // Strips HTML tags from problem content for a plain-text preview
@@ -135,12 +143,16 @@ export function buildProblemEmbed(problem: LeetCodeProblem): {
   };
 
   const tags = problem.topicTags.map((t) => t.name).join(', ') || 'None';
+  const premiumNote = problem.isPremium
+    ? '🔒 **Premium problem** — description requires a LeetCode Premium subscription.\n\n'
+    : '';
+  const description = premiumNote + (problem.isPremium ? '' : stripHtml(problem.content));
 
   return {
     color: difficultyColor[problem.difficulty],
     title: `#${problem.questionId} — ${problem.title}`,
     url: problem.url,
-    description: stripHtml(problem.content),
+    description,
     fields: [
       { name: 'Difficulty', value: problem.difficulty, inline: true },
       { name: 'Topics', value: tags, inline: true },
