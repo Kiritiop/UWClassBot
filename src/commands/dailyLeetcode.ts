@@ -28,7 +28,7 @@ const command: Command = {
       const problem = await getLatestProblem();
       const embed = buildProblemEmbed(problem);
       await (channel as TextChannel).send({
-        content: '## 📅 LeetCode Daily Challenge',
+        content: '## LeetCode Daily Challenge',
         embeds: [new EmbedBuilder(embed)],
       });
     } catch {

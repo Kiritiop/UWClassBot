@@ -87,14 +87,20 @@ async function fetchProblemDetail(titleSlug: string, frontendId: number, isPremi
   };
 }
 
-// Random problems are always free-only — premium ones have no visible description
-export async function getRandomProblem(difficulty?: Difficulty): Promise<LeetCodeProblem> {
+// Random problems are always free-only — premium ones have no visible description.
+// excludeIds: set of frontend_question_id strings already used (skipped first, reset if all exhausted).
+export async function getRandomProblem(difficulty?: Difficulty, excludeIds: Set<string> = new Set()): Promise<LeetCodeProblem> {
   const all = await fetchProblemList(true);
   const filtered = difficulty
     ? all.filter((p) => p.difficulty.level === DIFFICULTY_LEVEL[difficulty])
     : all;
   if (filtered.length === 0) throw new Error('No problems found');
-  const pick = filtered[Math.floor(Math.random() * filtered.length)];
+
+  // Prefer unseen problems; fall back to the full pool if all have been used
+  const unseen = filtered.filter((p) => !excludeIds.has(String(p.stat.frontend_question_id)));
+  const pool = unseen.length > 0 ? unseen : filtered;
+
+  const pick = pool[Math.floor(Math.random() * pool.length)];
   return fetchProblemDetail(pick.stat.question__title_slug, pick.stat.frontend_question_id, false);
 }
 
@@ -144,7 +150,7 @@ export function buildProblemEmbed(problem: LeetCodeProblem): {
 
   const tags = problem.topicTags.map((t) => t.name).join(', ') || 'None';
   const premiumNote = problem.isPremium
-    ? '🔒 **Premium problem** — description requires a LeetCode Premium subscription.\n\n'
+    ? '**Premium problem** — description requires a LeetCode Premium subscription.\n\n'
     : '';
   const description = premiumNote + (problem.isPremium ? '' : stripHtml(problem.content));
 
