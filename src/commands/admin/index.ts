@@ -8,6 +8,7 @@ import { handleSetAdminRole } from './setAdminRole';
 import { handleStats } from './stats';
 import { handleAudit } from './audit';
 import { handleForceArchive } from './forceArchive';
+import { handleRunLeetcode } from './runLeetcode';
 
 const command: Command = {
   data: new SlashCommandBuilder()
@@ -46,7 +47,8 @@ const command: Command = {
         .setDescription("Show a user's enrollments")
         .addUserOption((o) => o.setName('user').setDescription('Discord user').setRequired(true)),
     )
-    .addSubcommand((s) => s.setName('stats').setDescription('Show server stats')),
+    .addSubcommand((s) => s.setName('stats').setDescription('Show server stats'))
+    .addSubcommand((s) => s.setName('run-leetcode').setDescription('Manually trigger the LeetCode daily post now')),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const guild = interaction.guild!;
@@ -85,6 +87,7 @@ const command: Command = {
       case 'set-current-term': return handleSetCurrentTerm(interaction);
       case 'audit': return handleAudit(interaction);
       case 'stats': return handleStats(interaction);
+      case 'run-leetcode': return handleRunLeetcode(interaction);
       default:
         await interaction.reply({ embeds: [errorEmbed(`Unknown subcommand: ${sub}`)], flags: MessageFlags.Ephemeral as number });
     }

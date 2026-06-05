@@ -29,7 +29,13 @@ export async function runLeetcodeDailyJob(): Promise<void> {
         ?? await guild.channels.fetch(leetcode_channel_id).catch(() => null)) as TextChannel | null;
       if (!channel) continue;
 
-      const postedIds = await getPostedQuestionIds(guild_id);
+      let postedIds: Set<string>;
+      try {
+        postedIds = await getPostedQuestionIds(guild_id);
+      } catch {
+        // Table may not exist yet if migration hasn't run — treat as empty history
+        postedIds = new Set();
+      }
 
       // Use the latest problem if it's free and hasn't been posted to this guild yet.
       // Otherwise fall back to a random unseen free problem.
@@ -58,7 +64,7 @@ export async function runLeetcodeDailyJob(): Promise<void> {
         embeds: [new EmbedBuilder(buildProblemEmbed(problem))],
       });
 
-      await markProblemPosted(guild_id, problem.questionId);
+      await markProblemPosted(guild_id, problem.questionId).catch(() => null);
       logger.info({ guildId: guild_id, questionId: problem.questionId, isLatest }, 'LeetCode daily job: posted');
     } catch (err) {
       logger.error({ err, guild_id }, 'LeetCode daily job: failed to post to guild');
