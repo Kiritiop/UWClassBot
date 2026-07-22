@@ -15,6 +15,10 @@ import { config } from '../config';
 import { logger } from '../utils/logger';
 import type { Course, Section } from '../types';
 
+// Bounds how many distinct courses one user can hold at once, so a single member
+// can't spawn unbounded roles/channels toward Discord's per-guild limits.
+const MAX_COURSES_PER_USER = 12;
+
 export interface EnrollResult {
   status:
     | 'enrolled'
@@ -22,14 +26,15 @@ export interface EnrollResult {
     | 'waiting_list'
     | 'duplicate_type'
     | 'course_not_found'
-    | 'section_not_found';
+    | 'section_not_found'
+    | 'enrollment_limit';
   course?: Course;
   section?: Section;
   enrolledCount?: number;
 }
 
 function parseCourseCode(raw: string): { subject: string; catalogNumber: string } | null {
-  const match = raw.trim().toUpperCase().match(/^([A-Z]{2,5})\s*(\d{3}[A-Z]?)$/);
+  const match = raw.trim().toUpperCase().match(/^([A-Z]{2,6})\s*(\d{3}[A-Z]?)$/);
   if (!match) return null;
   return { subject: match[1], catalogNumber: match[2] };
 }
@@ -82,6 +87,29 @@ export async function enrollUserInSection(
   for (const s of samTypeSections) {
     if (s.id !== section.id && await isEnrolled(member.id, s.id)) {
       return { status: 'duplicate_type', course, section };
+    }
+  }
+
+  // Enforce the per-user course cap before creating any roles/channels.
+  // Adding another section of a course the user is already in doesn't count.
+  const alreadyInCourse = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS(
+       SELECT 1 FROM enrollments e
+       JOIN sections s ON s.id = e.section_id
+       WHERE e.user_id = $1 AND e.active = TRUE AND s.course_id = $2
+     ) AS exists`,
+    [member.id, course.id],
+  );
+  if (!alreadyInCourse.rows[0].exists) {
+    const distinctCourses = await pool.query<{ count: string }>(
+      `SELECT COUNT(DISTINCT s.course_id) AS count
+       FROM enrollments e
+       JOIN sections s ON s.id = e.section_id
+       WHERE e.user_id = $1 AND e.active = TRUE`,
+      [member.id],
+    );
+    if (parseInt(distinctCourses.rows[0].count, 10) >= MAX_COURSES_PER_USER) {
+      return { status: 'enrollment_limit', course, section };
     }
   }
 

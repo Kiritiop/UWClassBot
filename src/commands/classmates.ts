@@ -3,7 +3,7 @@ import type { Command } from './index';
 import { getCurrentTerm } from '../db/queries/terms';
 import { getCourseByCode } from '../db/queries/courses';
 import { getSectionsByCourse, getSectionByTypeAndNumber } from '../db/queries/sections';
-import { getEnrolledUserIds } from '../db/queries/enrollments';
+import { getEnrolledUserIds, getActiveEnrollments } from '../db/queries/enrollments';
 import { getUsersByIds } from '../db/queries/users';
 import { parseCourseCode, parseSectionArg } from '../services/enrollmentService';
 import { errorEmbed } from '../utils/embeds';
@@ -46,6 +46,16 @@ const command: Command = {
     }
 
     const allSections = await getSectionsByCourse(course.id);
+
+    // Only classmates can see the roster: require the requester to be enrolled in this course.
+    const myEnrollments = await getActiveEnrollments(interaction.user.id);
+    const isEnrolledInCourse = myEnrollments.some((e) => allSections.some((s) => s.id === e.section_id));
+    if (!isEnrolledInCourse) {
+      await interaction.editReply({
+        embeds: [errorEmbed(`You must be enrolled in ${course.subject} ${course.catalog_number} to see its classmates.`)],
+      });
+      return;
+    }
 
     // Determine which section(s) to show
     let sectionsToShow = allSections;

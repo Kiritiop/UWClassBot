@@ -5,7 +5,8 @@ import { commands } from '../commands/index';
 import { logger } from '../utils/logger';
 
 async function main(): Promise<void> {
-  const body = [...commands.values()].map((c) => c.data.toJSON());
+  // All commands operate on guild state (roles, channels, members), so disable DM usage.
+  const body = [...commands.values()].map((c) => ({ ...c.data.toJSON(), dm_permission: false }));
   const rest = new REST().setToken(config.DISCORD_BOT_TOKEN);
   logger.info({ count: body.length }, 'Registering global slash commands...');
   await rest.put(Routes.applicationCommands(config.DISCORD_CLIENT_ID), { body });

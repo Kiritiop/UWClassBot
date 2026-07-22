@@ -168,6 +168,9 @@ async function handleEnroll(
     case 'section_not_found':
       await reply(errorEmbed(`Section "${sectionArg}" not found for ${courseStr}. Use \`/sections ${courseStr}\` to see available sections.`));
       break;
+    case 'enrollment_limit':
+      await reply(errorEmbed(`You are already enrolled in the maximum number of courses. Unenroll from one before adding ${courseStr}.`));
+      break;
     case 'already_enrolled':
       await reply(errorEmbed(`You are already enrolled in ${courseStr} ${sectionArg}.`));
       break;
