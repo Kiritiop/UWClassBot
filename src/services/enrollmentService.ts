@@ -34,13 +34,17 @@ export interface EnrollResult {
 }
 
 function parseCourseCode(raw: string): { subject: string; catalogNumber: string } | null {
-  const match = raw.trim().toUpperCase().match(/^([A-Z]{2,6})\s*(\d{3}[A-Z]?)$/);
+  // Catalog numbers aren't always 3 digits + 1 letter: COOP/PD/SEQ use bare 1-2 digit
+  // numbers, and WLU cross-listed courses (e.g. BUS 461AW, ECE 6606PD) use up to 2 trailing letters.
+  const match = raw.trim().toUpperCase().match(/^([A-Z]{2,6})\s*(\d{1,4}[A-Z]{0,2})$/);
   if (!match) return null;
   return { subject: match[1], catalogNumber: match[2] };
 }
 
 function parseSectionArg(raw: string): { type: string; number: string } | null {
-  const match = raw.trim().toUpperCase().match(/^(LEC|TUT|LAB|TST|SEM|RDG|PRJ)\s*(\d{3})$/);
+  // Section types are always a 3-letter code (LEC, TUT, WSP, PRA, ...) - UW adds new ones
+  // over time, so match the shape rather than hardcoding an enum that goes stale.
+  const match = raw.trim().toUpperCase().match(/^([A-Z]{3})\s*(\d{3})$/);
   if (!match) return null;
   return { type: match[1], number: match[2] };
 }
