@@ -6,6 +6,7 @@ import type {
   SlashCommandSubcommandsOnlyBuilder,
 } from 'discord.js';
 import enrollCommand from './enroll';
+import enrollAllCommand from './enrollall';
 import unenrollCommand from './unenroll';
 import myclassesCommand from './myclasses';
 import sectionsCommand from './sections';
@@ -27,6 +28,7 @@ export interface Command {
 
 export const commands = new Collection<string, Command>();
 commands.set(enrollCommand.data.name, enrollCommand);
+commands.set(enrollAllCommand.data.name, enrollAllCommand);
 commands.set(unenrollCommand.data.name, unenrollCommand);
 commands.set(myclassesCommand.data.name, myclassesCommand);
 commands.set(sectionsCommand.data.name, sectionsCommand);

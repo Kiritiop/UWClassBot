@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
 // The global handler must not respond — doing so would consume the interaction
 // before the collector's showModal/update call, causing "InteractionAlreadyReplied".
 // Orphaned clicks (no active collector) will show Discord's native "interaction failed".
-const COLLECTOR_PREFIXES = ['setup_privacy_'];
+const COLLECTOR_PREFIXES = ['setup_privacy_', 'enrollall_'];
 
 export async function handleButton(interaction: ButtonInteraction): Promise<void> {
   const { customId } = interaction;
